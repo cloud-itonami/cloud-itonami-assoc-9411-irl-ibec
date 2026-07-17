@@ -1,0 +1,25 @@
+;; data/datascript-tx.edn — DataScript tx-data derived from src/association/facts.cljc
+;; `association.facts/catalog` (ADR-2607141700 Wave 0). Same shape as sibling files.
+
+[#:association-rule{:id "ibec.founding-1993-fie-cii-merger"
+                     :title "Ibec founded by merger of FIE and CII (Wikipedia)"
+                     :association "ibec"
+                     :isic "9411"
+                     :country "IRL"
+                     :kind :governance-program
+                     :url "https://en.wikipedia.org/wiki/Ibec"
+                     :url-provenance :wikipedia-corroborated
+                     :established-date "1993"
+                     :retrieved-at "2026-07-17"
+                     :topic [:governance]}
+ #:association-rule{:id "ibec.predecessor-dublin-employers-federation-1911"
+                     :title "Dublin Employers' Federation, Ibec's earliest predecessor body (Wikipedia)"
+                     :association "ibec"
+                     :isic "9411"
+                     :country "IRL"
+                     :kind :governance-program
+                     :url "https://en.wikipedia.org/wiki/Ibec"
+                     :url-provenance :wikipedia-corroborated
+                     :established-date "1911"
+                     :retrieved-at "2026-07-17"
+                     :topic [:governance]}]
