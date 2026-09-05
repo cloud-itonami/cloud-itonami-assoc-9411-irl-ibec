@@ -22,9 +22,36 @@ country
 ([`cloud-itonami-iso3166-irl`](https://github.com/cloud-itonami/cloud-itonami-iso3166-irl)),
 and association (this repo).
 
-`ibec.ie`'s own "About us" page did not itself state an exact
-founding date (only a vague "over 30 years" reference) — both
-entries here were instead directly confirmed via `en.wikipedia.org`.
+**Read `:association-rule/url-provenance`, not the title, when you need
+to know how far a fact has been checked.** There are three tiers, and
+the catalog's own coverage note counts them:
+
+| Tier | Provenance | Means |
+|---|---|---|
+| official | `:official-ibec-ie`, `:official-irishstatutebook-ie` | Ibec's own publication, or the Irish State's |
+| corroborated | `:wikipedia-corroborated` | no official source states it |
+| self-declared | `:official-ibec-ie-self-declared` | Ibec asserts it and nothing else here does |
+
+The two founding-history entries stay on the **corroborated** tier
+because `ibec.ie`'s own "About us" page does not state a founding date
+(only a vague "over 30 years"), so there is no official source to
+promote them to.
+
+The EU Transparency Register id (`479468313744-50`) is on the
+**self-declared** tier. Ibec publishes that number about itself; the
+register exposes no stable per-organisation URL to check it against —
+measured 2026-09-06, the `ec.europa.eu` and
+`transparency-register.europa.eu` deep links both 404 and the CSV
+export is 403. It is therefore Ibec's claim, **not** a register-side
+confirmation, and must not be cited as one. A test fails if that entry
+is ever moved off the self-declared tier without a real register URL.
+
+Every URL in the catalog was fetched on 2026-09-06 and returned 2xx,
+and each entry's claim was matched against the phrasing on the page it
+cites. One caveat worth stating: the Ibec Rules PDF is a **36-page
+scanned document with no extractable text**, so what is recorded about
+it is its publication and Ibec's own label for it ("Ibec Rules
+registered 22 08 2022"), not anything read out of its body.
 
 ## Scope
 
@@ -37,15 +64,33 @@ fabricate one.
 
 ## Data
 
-- `src/association/facts.cljc` — the catalog, source of truth.
+- `src/association/facts.cljc` — the catalog, source of truth,
+  authored by hand.
 - `schema/association-rule.edn` — DataScript schema.
-- `data/datascript-tx.edn` — derived DataScript tx-data (query this
-  alongside other `cloud-itonami`/`etzhayyim` compliance-fact sources via
-  `com-junkawasaki/root`'s `scripts/compliance-fact-query.cljs`).
+- `data/datascript-tx.edn` — the same catalog as DataScript tx-data
+  (query this alongside other `cloud-itonami`/`etzhayyim`
+  compliance-fact sources via `com-junkawasaki/root`'s
+  `scripts/compliance-fact-query.cljs`).
+- `src/association_facts.kotoba` — the Kotoba port, which reaches the
+  oracle, wasm and both native ISAs that the `.cljc` cannot.
+  **Generated — do not edit by hand:**
 
-Both entries directly WebFetch-verified against `en.wikipedia.org`'s
-own article: the 1993 founding (merger of FIE and CII) and the 1911
-Dublin Employers' Federation (Ibec's earliest predecessor body).
+  ```
+  nbb tools/gen_kotoba.cljs
+  ```
+
+The `.cljc` is written by hand and the `.kotoba` is generated from the
+`.edn`, so the two faces
+`test/association_facts_kotoba_parity_test.clj` compares are produced
+independently. That is the only reason comparing them means anything;
+do not "simplify" it by generating both from one source.
+
+## Tests
+
+```
+clojure -M:test     # catalog + cljc/kotoba parity, incl. all four compile targets
+clojure -M:lint
+```
 
 ## License
 

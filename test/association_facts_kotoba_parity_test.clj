@@ -1,18 +1,23 @@
 (ns association-facts-kotoba-parity-test
   "The IBEC catalog in .cljc and in .kotoba, field by field.
 
-  Both are readings of the same `data/datascript-tx.edn`, so this is not two
-  implementations of a rule; it is one body of facts written twice, and the
-  risk is transcription -- a wrong URL, a dropped field, a topic that lost its
-  entry. Every field of every entry is compared, plus the counts and topic
-  membership, because a catalog is exactly the shape where checking a sample
-  checks the entries someone already looked at.
+  These are not two implementations of a rule; they are one body of facts written
+  twice, and the risk is transcription -- a wrong URL, a dropped field, a topic
+  that lost its entry. The .cljc catalog is authored by hand; the .kotoba port is
+  emitted by tools/gen_kotoba.cljs from data/datascript-tx.edn. That independence
+  is the whole reason comparing them means anything, so do not 'simplify' this by
+  generating both from one source.
 
-  `:association-rule/topic` is a SET. A set has no order and `topic` is indexed
-  by position, so the port chose the order the data file writes; the assertion
-  below compares against that written order rather than against `seq` on a set,
-  which is not stable to rely on."
+  Every field of every entry is compared, plus the counts, topic membership and
+  the coverage note, because a catalog is exactly the shape where checking a
+  sample checks the entries someone already looked at.
+
+  `:association-rule/topic` is a SET in the .cljc. A set has no order and `topic`
+  is indexed by position, so both the port and the expectation below take the
+  order data/datascript-tx.edn writes -- read from that file here rather than
+  restated as a literal, because a literal is one more thing to forget."
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.edn :as edn]
             [association.facts :as facts]
             [kotoba.compiler.core :as compiler]
             [kotoba.kir :as ir]))
@@ -25,16 +30,16 @@
 (def ^:private slug "ibec")
 (def ^:private fields
   ["id" "title" "association" "isic" "country" "kind" "url" "url-provenance"
-   "established-date" "retrieved-at"])
+   "established-date" "last-revised-date" "retrieved-at"])
 (def ^:private kw->field
-  {"id" :association-rule/id "title" :association-rule/title
-   "association" :association-rule/association "isic" :association-rule/isic
-   "country" :association-rule/country "kind" :association-rule/kind
-   "url" :association-rule/url "url-provenance" :association-rule/url-provenance
-   "established-date" :association-rule/established-date
-   "retrieved-at" :association-rule/retrieved-at})
+  (into {} (map (juxt identity #(keyword "association-rule" %)) fields)))
 (def ^:private entries (vec (facts/spec-basis slug)))
-(def ^:private topic-order [["governance"] ["governance"]])
+
+;; The written order of each entry's topics, from the data file the port was
+;; generated from -- not from `seq` on a set, which is not stable to rely on.
+(def ^:private topic-order
+  (mapv #(mapv name (:association-rule/topic %))
+        (edn/read-string (slurp "data/datascript-tx.edn"))))
 
 (deftest the-fixture-reads-a-real-catalog
   ;; An empty catalog compares equal to an empty port.
@@ -52,6 +57,16 @@
                              :else expected)]
           (is (= expected (present (call 'entry-field slug i f)))))))))
 
+(deftest a-field-the-catalog-does-not-carry-is-absent-not-blank
+  ;; :last-revised-date is set on exactly one entry. If the port answered every
+  ;; field for every entry this test would pass while the port was wrong.
+  (let [carried (keep-indexed (fn [i _] (when (present (call 'entry-field slug i "last-revised-date")) i))
+                              entries)]
+    (is (= (keep-indexed (fn [i e] (when (:association-rule/last-revised-date e) i)) entries)
+           (seq carried))
+        "the port must carry the field on exactly the entries the catalog sets it on"))
+  (is (nil? (present (call 'entry-field slug 0 "no-such-field")))))
+
 (deftest topics-are-complete-and-in-the-order-the-port-chose
   (doseq [[i names] (map-indexed vector topic-order)]
     (testing (str "entry " i)
@@ -61,16 +76,30 @@
              (set (map name (:association-rule/topic (nth entries i)))))
           "the written order must name exactly the set the cljc holds")
       (doseq [[t nm] (map-indexed vector names)]
-        (is (= nm (present (call 'topic slug i t))))))))
+        (is (= nm (present (call 'topic slug i t)))))
+      (is (nil? (present (call 'topic slug i (count names))))
+          "and stop there"))))
 
-(deftest by-topic-answers-the-same-entries
-  (doseq [names topic-order t names]
+(deftest by-topic-answers-the-same-entries-at-every-index
+  (doseq [t (distinct (mapcat identity topic-order))]
     (testing t
       (let [cljc (mapv :association-rule/id (facts/by-topic slug (keyword t)))]
         (is (= (count cljc) (call 'by-topic-count slug t)))
-        (is (= (first cljc) (present (call 'by-topic-id slug t 0)))))))
+        ;; every index, not just the first: a port that answers 0 and gives up
+        ;; looks correct to a test that only ever asks for 0.
+        (doseq [[i id] (map-indexed vector cljc)]
+          (is (= id (present (call 'by-topic-id slug t i)))))
+        (is (nil? (present (call 'by-topic-id slug t (count cljc))))))))
   (is (zero? (call 'by-topic-count slug "no-such-topic")))
   (is (nil? (present (call 'by-topic-id slug "no-such-topic" 0)))))
+
+(deftest the-coverage-note-is-the-same-sentence-on-both-faces
+  ;; This drifted once already: the .cljc said the entries were "seeded with
+  ;; Wikipedia citations" while the port beside it said "an official citation",
+  ;; and nothing compared them. The .cljc note is computed from the catalog, so
+  ;; adding an entry changes it and the port must be regenerated.
+  (is (= (:note (facts/coverage [slug]))
+         (present (call 'coverage-note slug)))))
 
 (deftest an-unknown-association-is-covered-by-nothing
   (doseq [other ["zzz" ""]]
@@ -79,6 +108,11 @@
     (is (nil? (present (call 'entry-field other 0 "id"))))
     (is (nil? (present (call 'coverage-note other))))
     (is (nil? (facts/spec-basis other)) "and the cljc agrees")))
+
+(deftest an-out-of-range-entry-is-refused-at-both-ends
+  (doseq [i [-1 (count entries)]]
+    (is (nil? (present (call 'entry-field slug i "id"))))
+    (is (zero? (call 'topic-count slug i)))))
 
 (deftest the-module-compiles-for-every-target-it-claims
   (doseq [target [:js-kotoba-v1 :wasm32-kotoba-v1 :x86_64-kotoba-v1 :aarch64-kotoba-v1]]
