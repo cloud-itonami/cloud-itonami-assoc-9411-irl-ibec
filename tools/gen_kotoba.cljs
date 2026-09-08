@@ -13,7 +13,7 @@
 ;; them means anything.
 (ns gen-kotoba
   (:require [clojure.edn :as edn]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             ["fs" :as fs]))
 
 (def entries (edn/read-string (fs/readFileSync "data/datascript-tx.edn" "utf8")))
