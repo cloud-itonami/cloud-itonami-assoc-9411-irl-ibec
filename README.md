@@ -76,7 +76,7 @@ fabricate one.
   **Generated — do not edit by hand:**
 
   ```
-  nbb tools/gen_kotoba.cljs
+  kbb --backend sci tools/gen_kotoba.cljk
   ```
 
 The `.cljc` is written by hand and the `.kotoba` is generated from the
@@ -88,8 +88,8 @@ do not "simplify" it by generating both from one source.
 ## Tests
 
 ```
-clojure -M:test     # catalog + cljc/kotoba parity, incl. all four compile targets
-clojure -M:lint
+kbb -M:test     # catalog + cljc/kotoba parity, incl. all four compile targets
+kbb -M:lint
 ```
 
 ## License
