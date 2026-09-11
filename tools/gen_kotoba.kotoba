@@ -5,7 +5,7 @@
 ;; so the header named a generator that did not exist and a transcription error was
 ;; only ever caught downstream, by the parity test.
 ;;
-;; Run:  nbb tools/gen_kotoba.cljs
+;; Run:  kbb --backend sci tools/gen_kotoba.cljk
 ;;
 ;; This does NOT make the parity test redundant. The .cljc catalog is authored by
 ;; hand and this file is generated from the .edn, so the two faces the parity test
